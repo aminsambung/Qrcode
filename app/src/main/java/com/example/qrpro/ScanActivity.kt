@@ -1,63 +1,31 @@
 package com.example.qrpro
 
 import android.Manifest
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Bundle
-import android.view.View
-import android.widget.Button
-import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
-import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.lifecycleScope
-import com.example.qrpro.db.AppDatabase
-import com.example.qrpro.db.ScanHistory
-import com.example.qrpro.utils.OverlayView
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
-import kotlinx.coroutines.launch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 class ScanActivity : AppCompatActivity() {
 
     private lateinit var previewView: PreviewView
-    private lateinit var overlayView: OverlayView
     private lateinit var tvResult: TextView
-    private lateinit var tvFormat: TextView
-    private lateinit var resultCard: CardView
-    private lateinit var btnOpen: Button
-    private lateinit var btnFlash: ImageView
-
     private lateinit var cameraExecutor: ExecutorService
-    private var camera: Camera? = null
-    private var torchOn = false
     private var lastScanned = ""
-    private var lastScanTime = 0L
-    private val db by lazy { AppDatabase.getInstance(this) }
-
-    private val scanner = BarcodeScanning.getClient(
-        BarcodeScannerOptions.Builder()
-            .setBarcodeFormats(Barcode.FORMAT_ALL_FORMATS)
-            .build()
-    )
 
     private val requestPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -68,54 +36,13 @@ class ScanActivity : AppCompatActivity() {
             }
         }
 
-    private val pickImage = registerForActivityResult(
-        ActivityResultContracts.PickVisualMedia()
-    ) { uri: Uri? ->
-        uri?.let { processImageFromUri(it) }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_scan)
 
         previewView = findViewById(R.id.previewView)
-        overlayView = findViewById(R.id.overlayView)
         tvResult = findViewById(R.id.tvResult)
-        tvFormat = findViewById(R.id.tvFormat)
-        resultCard = findViewById(R.id.resultCard)
-        btnOpen = findViewById(R.id.btnOpen)
-        btnFlash = findViewById(R.id.btnFlash)
         cameraExecutor = Executors.newSingleThreadExecutor()
-
-        findViewById<View>(R.id.btnBack).setOnClickListener { finish() }
-        findViewById<View>(R.id.btnGallery).setOnClickListener {
-            pickImage.launch(PickVisualMediaRequest(
-                ActivityResultContracts.PickVisualMedia.ImageOnly
-            ))
-        }
-        findViewById<View>(R.id.btnCopy).setOnClickListener {
-            if (lastScanned.isNotEmpty()) {
-                val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                cb.setPrimaryClip(ClipData.newPlainText("QR", lastScanned))
-                Toast.makeText(this, "Tersalin ✓", Toast.LENGTH_SHORT).show()
-            }
-        }
-        btnOpen.setOnClickListener {
-            try {
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(lastScanned)))
-            } catch (e: Exception) {
-                Toast.makeText(this, "Tidak bisa buka link", Toast.LENGTH_SHORT).show()
-            }
-        }
-        btnFlash.setOnClickListener {
-            camera?.let {
-                torchOn = !torchOn
-                it.cameraControl.enableTorch(torchOn)
-                btnFlash.setColorFilter(
-                    if (torchOn) 0xFFFFEB3B.toInt() else 0xFFFFFFFF.toInt()
-                )
-            }
-        }
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
             == PackageManager.PERMISSION_GRANTED
@@ -132,30 +59,42 @@ class ScanActivity : AppCompatActivity() {
                 it.setSurfaceProvider(previewView.surfaceProvider)
             }
 
+            val scanner = BarcodeScanning.getClient(
+                BarcodeScannerOptions.Builder()
+                    .setBarcodeFormats(Barcode.FORMAT_ALL_FORMATS)
+                    .build()
+            )
+
             val analysis = ImageAnalysis.Builder()
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
 
             analysis.setAnalyzer(cameraExecutor) { imageProxy ->
-                val media = imageProxy.image ?: run {
-                    imageProxy.close(); return@setAnalyzer
-                }
-                val image = InputImage.fromMediaImage(
-                    media, imageProxy.imageInfo.rotationDegrees
-                )
-                scanner.process(image)
-                    .addOnSuccessListener { barcodes ->
-                        val barcode = barcodes.firstOrNull() ?: return@addOnSuccessListener
-                        barcode.rawValue?.let { value ->
-                            handleResult(value, barcode.format)
+                val media = imageProxy.image
+                if (media != null) {
+                    val image = InputImage.fromMediaImage(
+                        media, imageProxy.imageInfo.rotationDegrees
+                    )
+                    scanner.process(image)
+                        .addOnSuccessListener { barcodes ->
+                            for (b in barcodes) {
+                                b.rawValue?.let { value ->
+                                    if (value != lastScanned) {
+                                        lastScanned = value
+                                        runOnUiThread {
+                                            tvResult.text = "Hasil: $value"
+                                        }
+                                    }
+                                }
+                            }
                         }
-                    }
-                    .addOnCompleteListener { imageProxy.close() }
+                        .addOnCompleteListener { imageProxy.close() }
+                } else imageProxy.close()
             }
 
             try {
                 provider.unbindAll()
-                camera = provider.bindToLifecycle(
+                provider.bindToLifecycle(
                     this, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis
                 )
             } catch (e: Exception) {
@@ -164,75 +103,8 @@ class ScanActivity : AppCompatActivity() {
         }, ContextCompat.getMainExecutor(this))
     }
 
-    private fun handleResult(value: String, format: Int) {
-        val now = System.currentTimeMillis()
-        if (value == lastScanned && now - lastScanTime < 2000) return
-        lastScanned = value
-        lastScanTime = now
-
-        val formatName = when (format) {
-            Barcode.FORMAT_QR_CODE -> "QR_CODE"
-            Barcode.FORMAT_EAN_13 -> "EAN_13"
-            Barcode.FORMAT_EAN_8 -> "EAN_8"
-            Barcode.FORMAT_UPC_A -> "UPC_A"
-            Barcode.FORMAT_CODE_128 -> "CODE_128"
-            Barcode.FORMAT_CODE_39 -> "CODE_39"
-            else -> "UNKNOWN"
-        }
-
-        runOnUiThread {
-            resultCard.visibility = View.VISIBLE
-            tvFormat.text = formatName
-            tvResult.text = value
-            btnOpen.visibility = if (value.startsWith("http")) View.VISIBLE else View.GONE
-        }
-
-        lifecycleScope.launch {
-            try {
-                val existing = db.scanDao().findByContent(value)
-                if (existing == null) {
-                    db.scanDao().insert(
-                        ScanHistory(
-                            content = value,
-                            format = formatName,
-                            type = "SCAN"
-                        )
-                    )
-                }
-            } catch (e: Exception) {
-                // silent fail
-            }
-        }
-    }
-
-    private fun processImageFromUri(uri: Uri) {
-        try {
-            val image = InputImage.fromFilePath(this, uri)
-            scanner.process(image)
-                .addOnSuccessListener { barcodes ->
-                    val barcode = barcodes.firstOrNull()
-                    if (barcode == null) {
-                        Toast.makeText(this, "Tidak ada barcode di gambar",
-                            Toast.LENGTH_SHORT).show()
-                    } else {
-                        barcode.rawValue?.let { value ->
-                            handleResult(value, barcode.format)
-                            Toast.makeText(this, "Berhasil scan dari galeri ✓",
-                                Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }
-                .addOnFailureListener {
-                    Toast.makeText(this, "Gagal scan gambar", Toast.LENGTH_SHORT).show()
-                }
-        } catch (e: Exception) {
-            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
-        }
-    }
-
     override fun onDestroy() {
         super.onDestroy()
         cameraExecutor.shutdown()
-        scanner.close()
     }
 }
