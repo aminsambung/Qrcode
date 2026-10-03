@@ -200,7 +200,7 @@ class ScanActivity : AppCompatActivity() {
                     )
                 }
             } catch (e: Exception) {
-                // Silent fail
+                // silent fail
             }
         }
     }
