@@ -8,12 +8,12 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
-import android.net.wifi.WifiManager
 import android.os.Bundle
 import android.view.View
 import android.widget.*
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
@@ -186,7 +186,6 @@ class ScanActivity : AppCompatActivity() {
         lastScanned = value
         lastScanTime = now
 
-        // Detect QR type
         val type = detectType(value, format)
         currentType = type
         currentValue = value
@@ -213,32 +212,92 @@ class ScanActivity : AppCompatActivity() {
     private fun showResult(value: String, type: QrType, formatName: String) {
         resultCard.visibility = View.VISIBLE
 
-        // Set warna card sesuai tipe
-        val (typeLabel, typeColor) = when (type) {
-            QrType.URL      -> "🌐 Link" to Color.parseColor("#2196F3")
-            QrType.EMAIL    -> "📧 Email" to Color.parseColor("#9C27B0")
-            QrType.PHONE    -> "📱 Telepon" to Color.parseColor("#4CAF50")
-            QrType.SMS      -> "💬 SMS" to Color.parseColor("#FF9800")
-            QrType.WIFI     -> "📶 WiFi" to Color.parseColor("#00BCD4")
-            QrType.LOCATION -> "📍 Lokasi" to Color.parseColor("#F44336")
-            QrType.PRODUCT  -> "📦 Produk" to Color.parseColor("#795548")
-            QrType.TEXT     -> "📝 Teks" to Color.parseColor("#607D8B")
+        val typeLabel: String
+        val typeColor: Int
+        when (type) {
+            QrType.URL -> {
+                typeLabel = "🌐 Link"
+                typeColor = Color.parseColor("#2196F3")
+            }
+            QrType.EMAIL -> {
+                typeLabel = "📧 Email"
+                typeColor = Color.parseColor("#9C27B0")
+            }
+            QrType.PHONE -> {
+                typeLabel = "📱 Telepon"
+                typeColor = Color.parseColor("#4CAF50")
+            }
+            QrType.SMS -> {
+                typeLabel = "💬 SMS"
+                typeColor = Color.parseColor("#FF9800")
+            }
+            QrType.WIFI -> {
+                typeLabel = "📶 WiFi"
+                typeColor = Color.parseColor("#00BCD4")
+            }
+            QrType.LOCATION -> {
+                typeLabel = "📍 Lokasi"
+                typeColor = Color.parseColor("#F44336")
+            }
+            QrType.PRODUCT -> {
+                typeLabel = "📦 Produk"
+                typeColor = Color.parseColor("#795548")
+            }
+            QrType.TEXT -> {
+                typeLabel = "📝 Teks"
+                typeColor = Color.parseColor("#607D8B")
+            }
         }
 
         tvType.text = typeLabel
         tvType.setTextColor(typeColor)
         tvResult.text = value
 
-        // Hint & button text
-        val (hint, buttonText, buttonVisible) = when (type) {
-            QrType.URL      -> Triple("Tap 'Buka Link' untuk buka di browser", "🌐 Buka Link", true)
-            QrType.EMAIL    -> Triple("Tap 'Kirim Email' untuk buka Gmail", "📧 Kirim Email", true)
-            QrType.PHONE    -> Triple("Tap 'Telepon' untuk menelepon", "📱 Telepon", true)
-            QrType.SMS      -> Triple("Tap 'Kirim SMS' untuk kirim pesan", "💬 Kirim SMS", true)
-            QrType.WIFI     -> Triple("Info jaringan WiFi terdeteksi", "📶 Info WiFi", true)
-            QrType.LOCATION -> Triple("Tap 'Buka Maps' untuk lihat lokasi", "📍 Buka Maps", true)
-            QrType.PRODUCT  -> Triple("Tap 'Cari Produk' untuk info lengkap", "📦 Cari Produk", true)
-            QrType.TEXT     -> Triple("Tap 'Copy' untuk salin teks", "📋 Copy Teks", false)
+        val hint: String
+        val buttonText: String
+        val buttonVisible: Boolean
+
+        when (type) {
+            QrType.URL -> {
+                hint = "Tap 'Buka Link' untuk buka di browser"
+                buttonText = "🌐 Buka Link"
+                buttonVisible = true
+            }
+            QrType.EMAIL -> {
+                hint = "Tap 'Kirim Email' untuk buka Gmail"
+                buttonText = "📧 Kirim Email"
+                buttonVisible = true
+            }
+            QrType.PHONE -> {
+                hint = "Tap 'Telepon' untuk menelepon"
+                buttonText = "📱 Telepon"
+                buttonVisible = true
+            }
+            QrType.SMS -> {
+                hint = "Tap 'Kirim SMS' untuk kirim pesan"
+                buttonText = "💬 Kirim SMS"
+                buttonVisible = true
+            }
+            QrType.WIFI -> {
+                hint = "Info jaringan WiFi terdeteksi"
+                buttonText = "📶 Info WiFi"
+                buttonVisible = true
+            }
+            QrType.LOCATION -> {
+                hint = "Tap 'Buka Maps' untuk lihat lokasi"
+                buttonText = "📍 Buka Maps"
+                buttonVisible = true
+            }
+            QrType.PRODUCT -> {
+                hint = "Tap 'Cari Produk' untuk info lengkap"
+                buttonText = "📦 Cari Produk"
+                buttonVisible = true
+            }
+            QrType.TEXT -> {
+                hint = "Tap 'Copy' untuk salin teks"
+                buttonText = "📋 Copy Teks"
+                buttonVisible = false
+            }
         }
 
         tvHint.text = hint
@@ -247,30 +306,33 @@ class ScanActivity : AppCompatActivity() {
     }
 
     // ============================================================
-    //                    DETECT TYPE
+    //                    DETECT TYPE (FIXED)
     // ============================================================
     private enum class QrType { URL, EMAIL, PHONE, SMS, WIFI, LOCATION, PRODUCT, TEXT }
 
     private fun detectType(value: String, format: Int): QrType {
         val lower = value.lowercase()
 
-        // Barcode produk
-        if (format in listOf(
-                Barcode.FORMAT_EAN_13,
-                Barcode.FORMAT_EAN_8,
-                Barcode.FORMAT_UPC_A,
-                Barcode.FORMAT_UPC_E
-            )
+        // Barcode produk (EAN/UPC)
+        if (format == Barcode.FORMAT_EAN_13 ||
+            format == Barcode.FORMAT_EAN_8 ||
+            format == Barcode.FORMAT_UPC_A ||
+            format == Barcode.FORMAT_UPC_E
         ) return QrType.PRODUCT
 
         // URL
-        if (lower.startsWith("http://") || lower.startsWith("https://") ||
-            lower.startsWith("www.")) return QrType.URL
+        if (lower.startsWith("http://") ||
+            lower.startsWith("https://") ||
+            lower.startsWith("www.")
+        ) return QrType.URL
 
-        // Email
-        if (lower.startsWith("mailto:") ||
-            (lower.contains("@") && lower.contains(".", lower.indexOf("@")) &&
-                    !lower.contains(" "))) return QrType.EMAIL
+        // Email - pakai mailto: ATAU deteksi format email
+        if (lower.startsWith("mailto:")) return QrType.EMAIL
+        if (lower.contains("@") && lower.contains(".") && !lower.contains(" ")) {
+            val atIndex = lower.indexOf("@")
+            val dotAfterAt = lower.indexOf(".", atIndex)
+            if (dotAfterAt > atIndex) return QrType.EMAIL
+        }
 
         // Telepon
         if (lower.startsWith("tel:") || lower.startsWith("phone:")) return QrType.PHONE
@@ -279,13 +341,14 @@ class ScanActivity : AppCompatActivity() {
         if (lower.startsWith("sms:") || lower.startsWith("smsto:")) return QrType.SMS
 
         // WiFi
-        if (lower.startsWith("wifi:") || lower.startsWith("wifi:")) return QrType.WIFI
+        if (lower.startsWith("wifi:")) return QrType.WIFI
 
         // Lokasi
         if (lower.startsWith("geo:") ||
             lower.contains("maps.google.com") ||
             lower.contains("goo.gl/maps") ||
-            lower.contains("google.com/maps")) return QrType.LOCATION
+            lower.contains("google.com/maps")
+        ) return QrType.LOCATION
 
         return QrType.TEXT
     }
@@ -360,15 +423,9 @@ class ScanActivity : AppCompatActivity() {
                     part.startsWith("T:") -> type = part.substring(2)
                 }
             }
-            val msg = """
-                📶 Info WiFi
-                
-                SSID: $ssid
-                Password: $pass
-                Tipe: $type
-            """.trimIndent()
+            val msg = "📶 Info WiFi\n\nSSID: $ssid\nPassword: $pass\nTipe: $type"
 
-            androidx.appcompat.app.AlertDialog.Builder(this)
+            AlertDialog.Builder(this)
                 .setTitle("WiFi Terdeteksi")
                 .setMessage(msg)
                 .setPositiveButton("Copy Info") { _, _ ->
