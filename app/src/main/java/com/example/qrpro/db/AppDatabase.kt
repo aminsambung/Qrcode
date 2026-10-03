@@ -1,22 +1,23 @@
-package com.example.qrpro.data
+package com.example.qrpro.db
 
 import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [HistoryEntity::class], version = 1, exportSchema = false)
+@Database(entities = [ScanHistory::class], version = 1, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
-    abstract fun historyDao(): HistoryDao
+    abstract fun scanDao(): ScanDao
 
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
-        fun get(context: Context): AppDatabase =
+
+        fun getInstance(context: Context): AppDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "qrpro.db"
+                    "qrpro_db"
                 ).build().also { INSTANCE = it }
             }
     }
