@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="24dp"
-        android:gravity="center_horizontal">
+        android:padding="20dp">
 
         <TextView
             android:layout_width="wrap_content"
@@ -16,49 +16,169 @@
             android:text="Buat QR Code"
             android:textSize="22sp"
             android:textStyle="bold"
-            android:layout_marginBottom="20dp"/>
+            android:textColor="#000000"
+            android:layout_gravity="center"
+            android:layout_marginBottom="16dp" />
 
         <EditText
             android:id="@+id/etInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="Masukkan teks / URL"
-            android:inputType="textUri|textMultiLine"
+            android:textColorHint="#888888"
+            android:textColor="#000000"
+            android:background="#FFFFFF"
             android:minLines="2"
             android:gravity="top"
-            android:padding="12dp"
-            android:background="@android:drawable/editbox_background"/>
+            android:inputType="textUri|textMultiLine"
+            android:padding="12dp" />
 
+        <!-- Warna QR -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Warna QR:"
+            android:textColor="#000000"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp">
+
+            <Button
+                android:id="@+id/btnColorBlack"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:backgroundTint="#000000"
+                android:text=""
+                android:layout_marginEnd="4dp" />
+
+            <Button
+                android:id="@+id/btnColorBlue"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:backgroundTint="#2196F3"
+                android:text=""
+                android:layout_marginEnd="4dp" />
+
+            <Button
+                android:id="@+id/btnColorRed"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:backgroundTint="#F44336"
+                android:text=""
+                android:layout_marginEnd="4dp" />
+
+            <Button
+                android:id="@+id/btnColorGreen"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:backgroundTint="#4CAF50"
+                android:text=""
+                android:layout_marginEnd="4dp" />
+
+            <Button
+                android:id="@+id/btnColorPurple"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:backgroundTint="#9C27B0"
+                android:text="" />
+        </LinearLayout>
+
+        <!-- Background QR -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Background QR:"
+            android:textColor="#000000"
+            android:textStyle="bold"
+            android:layout_marginTop="12dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp">
+
+            <Button
+                android:id="@+id/btnBgWhite"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="Putih"
+                android:backgroundTint="#FFFFFF"
+                android:textColor="#000000"
+                android:layout_marginEnd="6dp" />
+
+            <Button
+                android:id="@+id/btnBgLight"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="Abu"
+                android:backgroundTint="#F5F5F5"
+                android:textColor="#000000"
+                android:layout_marginEnd="6dp" />
+
+            <Button
+                android:id="@+id/btnBgYellow"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="Kuning"
+                android:backgroundTint="#FFF9C4"
+                android:textColor="#000000" />
+        </LinearLayout>
+
+        <!-- Toggle Logo -->
+        <Switch
+            android:id="@+id/swLogo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Tambah logo di tengah"
+            android:textColor="#000000" />
+
+        <!-- Tombol Generate -->
         <Button
             android:id="@+id/btnGenerate"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="Generate QR"/>
+            android:text="✨ GENERATE QR" />
 
+        <!-- Preview QR -->
         <ImageView
             android:id="@+id/ivQR"
             android:layout_width="280dp"
             android:layout_height="280dp"
-            android:layout_marginTop="24dp"
-            android:background="#F0F0F0"
-            android:scaleType="fitCenter"/>
+            android:layout_gravity="center"
+            android:layout_marginTop="20dp"
+            android:background="#FFFFFF"
+            android:scaleType="fitCenter" />
 
+        <!-- Tombol Simpan & Share -->
         <Button
             android:id="@+id/btnSave"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="💾 Simpan ke Galeri"
-            android:visibility="gone"/>
+            android:text="💾 SIMPAN KE GALERI" />
 
         <Button
             android:id="@+id/btnShare"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="📤 Bagikan"
-            android:visibility="gone"/>
+            android:text="📤 BAGIKAN" />
 
     </LinearLayout>
 </ScrollView>
