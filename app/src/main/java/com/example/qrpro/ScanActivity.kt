@@ -6,20 +6,25 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.RectF
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
+import android.widget.Button
+import android.widget.ImageView
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.camera.core.*
+import androidx.camera.core.Camera
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
-import com.example.qrpro.api.ApiClient
 import com.example.qrpro.db.AppDatabase
 import com.example.qrpro.db.ScanHistory
 import com.example.qrpro.utils.OverlayView
@@ -35,11 +40,11 @@ class ScanActivity : AppCompatActivity() {
 
     private lateinit var previewView: PreviewView
     private lateinit var overlayView: OverlayView
-    private lateinit var tvResult: android.widget.TextView
-    private lateinit var tvFormat: android.widget.TextView
-    private lateinit var resultCard: View
-    private lateinit var btnOpen: android.widget.Button
-    private lateinit var btnFlash: android.widget.ImageView
+    private lateinit var tvResult: TextView
+    private lateinit var tvFormat: TextView
+    private lateinit var resultCard: CardView
+    private lateinit var btnOpen: Button
+    private lateinit var btnFlash: ImageView
 
     private lateinit var cameraExecutor: ExecutorService
     private var camera: Camera? = null
@@ -140,23 +145,8 @@ class ScanActivity : AppCompatActivity() {
                 )
                 scanner.process(image)
                     .addOnSuccessListener { barcodes ->
-                        val barcode = barcodes.firstOrNull() ?: run {
-                            overlayView.setBarcodeRect(null)
-                            return@addOnSuccessListener
-                        }
+                        val barcode = barcodes.firstOrNull() ?: return@addOnSuccessListener
                         barcode.rawValue?.let { value ->
-                            // Bounding box
-                            barcode.boundingBox?.let { box ->
-                                val scaleX = previewView.width.toFloat() / imageProxy.width
-                                val scaleY = previewView.height.toFloat() / imageProxy.height
-                                val rect = RectF(
-                                    box.left * scaleX,
-                                    box.top * scaleY,
-                                    box.right * scaleX,
-                                    box.bottom * scaleY
-                                )
-                                overlayView.setBarcodeRect(rect)
-                            }
                             handleResult(value, barcode.format)
                         }
                     }
@@ -187,8 +177,6 @@ class ScanActivity : AppCompatActivity() {
             Barcode.FORMAT_UPC_A -> "UPC_A"
             Barcode.FORMAT_CODE_128 -> "CODE_128"
             Barcode.FORMAT_CODE_39 -> "CODE_39"
-            Barcode.FORMAT_DATA_MATRIX -> "DATA_MATRIX"
-            Barcode.FORMAT_PDF417 -> "PDF417"
             else -> "UNKNOWN"
         }
 
@@ -199,45 +187,20 @@ class ScanActivity : AppCompatActivity() {
             btnOpen.visibility = if (value.startsWith("http")) View.VISIBLE else View.GONE
         }
 
-        // Cek produk jika EAN/UPC
-        val isProduct = format in listOf(
-            Barcode.FORMAT_EAN_13, Barcode.FORMAT_EAN_8, Barcode.FORMAT_UPC_A
-        )
-
         lifecycleScope.launch {
-            val existing = db.scanDao().findByContent(value)
-            if (existing == null) {
-                db.scanDao().insert(
-                    ScanHistory(
-                        content = value,
-                        format = formatName,
-                        type = "SCAN"
+            try {
+                val existing = db.scanDao().findByContent(value)
+                if (existing == null) {
+                    db.scanDao().insert(
+                        ScanHistory(
+                            content = value,
+                            format = formatName,
+                            type = "SCAN"
+                        )
                     )
-                )
-            }
-
-            if (isProduct) {
-                try {
-                    val response = ApiClient.productApi.getProduct(value)
-                    if (response.status == 1 && response.product != null) {
-                        val p = response.product
-                        val name = p.productName ?: p.brands ?: "Produk tidak dikenal"
-                        // Update DB
-                        db.scanDao().findByContent(value)?.let { old ->
-                            db.scanDao().delete(old)
-                            db.scanDao().insert(old.copy(
-                                productName = name,
-                                productImage = p.imageUrl
-                            ))
-                        }
-                        // Tampilkan info produk
-                        runOnUiThread {
-                            tvResult.text = "$value\n\n📦 $name"
-                        }
-                    }
-                } catch (e: Exception) {
-                    // Silent fail — tidak semua barcode ada di DB
                 }
+            } catch (e: Exception) {
+                // Silent fail
             }
         }
     }
