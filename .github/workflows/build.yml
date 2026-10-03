@@ -27,14 +27,12 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      # 3. Setup Android SDK (MANUAL - lebih stabil)
+      # 3. Setup Android SDK (manual - stabil)
       - name: 🔧 Setup Android SDK
         run: |
-          # Set environment
           echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
           echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
           
-          # Install cmdline-tools versi stabil
           mkdir -p $ANDROID_HOME/cmdline-tools
           cd $ANDROID_HOME/cmdline-tools
           if [ ! -d "latest" ]; then
@@ -44,20 +42,40 @@ jobs:
             rm cmdline-tools.zip
           fi
           
-          # Set PATH
           echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_PATH
           echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
           
-          # Accept licenses
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          
-          # Install SDK yang dibutuhkan
           sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" > /dev/null 2>&1 || true
           
           echo "✅ Android SDK setup complete"
-          sdkmanager --list_installed | head -20
 
-      # 4. Cache Gradle
+      # 4. Setup Gradle (GENERATE WRAPPER OTOMATIS)
+      - name: 🔧 Setup Gradle
+        uses: gradle/gradle-build-action@v3
+        with:
+          gradle-version: 8.2
+
+      # 5. Generate gradlew (kalau belum ada)
+      - name: 🏗️ Generate Gradle Wrapper
+        run: |
+          if [ ! -f "gradlew" ]; then
+            echo "⚠️ gradlew tidak ditemukan, generate..."
+            gradle wrapper --gradle-version 8.2
+            echo "✅ gradlew berhasil dibuat"
+          else
+            echo "✅ gradlew sudah ada"
+          fi
+          chmod +x gradlew
+          ls -la gradlew
+
+      # 6. Buat local.properties
+      - name: 📝 Create local.properties
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          cat local.properties
+
+      # 7. Cache Gradle
       - name: 💾 Cache Gradle packages
         uses: actions/cache@v4
         with:
@@ -68,19 +86,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      # 5. Grant execute permission
-      - name: 🔑 Grant execute permission for gradlew
-        run: chmod +x gradlew
-
-      # 6. Build Debug APK
+      # 8. Build Debug APK
       - name: 🏗️ Build Debug APK
         run: ./gradlew assembleDebug --stacktrace --no-daemon
 
-      # 7. Build Release APK
+      # 9. Build Release APK
       - name: 🏗️ Build Release APK
         run: ./gradlew assembleRelease --stacktrace --no-daemon
 
-      # 8. Upload Debug APK
+      # 10. Upload Debug APK
       - name: 📤 Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
@@ -88,7 +102,7 @@ jobs:
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 30
 
-      # 9. Upload Release APK
+      # 11. Upload Release APK
       - name: 📤 Upload Release APK
         uses: actions/upload-artifact@v4
         with:
@@ -96,7 +110,7 @@ jobs:
           path: app/build/outputs/apk/release/*.apk
           retention-days: 30
 
-      # 10. Auto-create Release
+      # 12. Auto-create Release
       - name: 🚀 Create Release
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: softprops/action-gh-release@v1
